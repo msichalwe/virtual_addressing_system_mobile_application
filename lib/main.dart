@@ -1,9 +1,7 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
-
 import 'add_address_screen.dart';
 
 void main() {
@@ -26,229 +24,58 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  bool isLoading = false; // Flag to control the visibility of the loading indicator
+  bool isLoading = false;
   Location location = new Location();
-  late bool _serviceEnabled;
-  late PermissionStatus _permissionGranted;
   late LocationData _locationData;
-
+  late Marker _currentLocationMarker;
+  Set<Marker> _markers = Set();
   late GoogleMapController mapController;
-  Set<Polygon> polygons = Set();
   String selectedBoxId = '';
-  String selectedLargeBoxId = '';
-  double currentZoom = 12.0; // Default zoom level
-  static const double zoomThreshold =
-      15.0; // Threshold for generating smaller boxes
+  final double latStart = -15.7000;
+  final double lngStart = 28.0000;
+  final double latStep = 0.09;
+  final double lngStep = 0.1;
+  Set<Polygon> polygons = Set<Polygon>();
 
-  final double latStart = -15.7000; // Southwestern latitude of Lusaka province
-  final double lngStart = 28.0000; // Southwestern longitude of Lusaka province
-  final double latStep = 0.09; // Latitude step (difference between each box)
-  final double lngStep = 0.1; // Longitude step (difference between each box)
+  @override
+  void initState() {
+    super.initState();
+    getCurrentVirtualAddress();
+    generateBoxes();
+  }
 
   void getCurrentVirtualAddress() async {
-    setState(() {
-      isLoading = true; // Show loading indicator
-    });
-    _serviceEnabled = await location.serviceEnabled();
-    if (!_serviceEnabled) {
-      _serviceEnabled = await location.requestService();
-      if (!_serviceEnabled) {
+    setState(() => isLoading = true);
+
+    bool serviceEnabled = await location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await location.requestService();
+      if (!serviceEnabled) {
+        setState(() => isLoading = false);
         return;
       }
     }
 
-    _permissionGranted = await location.hasPermission();
-    if (_permissionGranted == PermissionStatus.denied) {
-      _permissionGranted = await location.requestPermission();
-      if (_permissionGranted != PermissionStatus.granted) {
+    PermissionStatus permissionGranted = await location.hasPermission();
+    if (permissionGranted == PermissionStatus.denied) {
+      permissionGranted = await location.requestPermission();
+      if (permissionGranted != PermissionStatus.granted) {
+        setState(() => isLoading = false);
         return;
       }
     }
 
     _locationData = await location.getLocation();
     findVirtualAddress(_locationData);
-
-    if (_locationData != null) {
-      print("Current location: ${_locationData.latitude}, ${_locationData.longitude}");
-      findVirtualAddress(_locationData);
-    } else {
-      print("Failed to fetch location");
-    }
-
-
   }
 
-  void findVirtualAddress(LocationData locationData) {
-    if (locationData.latitude != null && locationData.longitude != null) {
-      String largeBoxId = determineLargeBoxId(locationData);
-      String smallBoxId = determineSmallBoxId(locationData, largeBoxId);
-      String fullVirtualAddress = "ZM-LSK-LSK-$largeBoxId+$smallBoxId";
-
-      setState(() {
-        selectedBoxId = fullVirtualAddress;
-      });
-
-      // Move the camera to the current location
-      mapController.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: LatLng(locationData.latitude!, locationData.longitude!),
-            zoom: 15.0, // Adjust zoom level as needed
-          ),
-        ),
-      );
-      setState(() {
-        isLoading = false; // Hide loading indicator
-      });
-    } else {
-      // Handle the case when latitude or longitude is null
-      // For example, show an error message
-      print("Location data is not available.");
-      setState(() {
-        isLoading = false; // Hide loading indicator
-      });
-    }
-
-  }
-
-
-  String determineLargeBoxId(LocationData locationData) {
-    // Replace this with your logic to calculate the large box ID
-    // based on locationData.latitude and locationData.longitude
-    return "LargeBoxID"; // Example ID
-  }
-
-  String determineSmallBoxId(LocationData locationData, String largeBoxId) {
-    // Replace this with your logic to calculate the small box ID
-    // based on the location within the large box
-    return "SmallBoxID"; // Example ID
-  }
-
-
-
-
-  @override
-  void initState() {
-    super.initState();
-    generateBoxes();
-  }
-
-
-
-  void submitVirtualAddress(String plotNumber, String street, String ward, String district, String province, String type) {
-    // Logic to submit the data to your API
-    // This may involve making an HTTP request
-    // After submission, you may want to reload the map or perform another action
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: getCurrentVirtualAddress,
-        tooltip: 'Get Current Virtual Address',
-        child: Icon(Icons.my_location),
-      ),
-      appBar: AppBar(
-        elevation: 0,
-        title: Text('ZICTA Virtual Addressing Application'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: GoogleMap(
-              onMapCreated: (controller) {
-                mapController = controller;
-              },
-              onCameraMove: handleCameraMove,
-              initialCameraPosition: CameraPosition(
-                target:
-                    LatLng(-15.4167, 28.2833), // Coordinates for Lusaka, Zambia
-                zoom: 12.0,
-              ),
-              polygons: polygons,
-              onTap: onBoxTap,
-            ),
-          ),
-          GestureDetector(
-            onTap: () {
-
-              if (!isLoading) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => AddAddressScreen(
-                      virtualAddress: selectedBoxId,
-                      latitude: _locationData.latitude!,
-                      longitude: _locationData.longitude!,
-                    ),
-                  ),
-                );
-              }
-            },
-            child: Container(
-              padding: EdgeInsets.all(10),
-              child: Column(
-                children: [
-                  if(isLoading) CircularProgressIndicator(),
-                  if (!isLoading) Container(
-                    color: Colors.grey[200],
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      'Selected Box ID: $selectedBoxId',
-                      style: TextStyle(fontSize: 10.0),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-
-
-        ],
-      ),
-    );
-  }
-
-  void handleCameraMove(CameraPosition position) {
-    setState(() {
-      currentZoom = position.zoom;
-      currentZoom = position.zoom;
-    });
-
-    if (currentZoom >= zoomThreshold) {
-      LatLng center = position.target;
-      String newSelectedLargeBoxId = findLargeBoxId(center);
-
-      // Check if the new box ID is different or if zooming back into a large box
-      if (newSelectedLargeBoxId != selectedLargeBoxId || polygons.isEmpty) {
-        setState(() {
-          selectedLargeBoxId = newSelectedLargeBoxId;
-        });
-        generateSmallBoxes(selectedLargeBoxId);
-      }
-    } else {
-      // Reset the selectedLargeBoxId when zooming out
-      if (selectedLargeBoxId.isNotEmpty) {
-        setState(() {
-          selectedLargeBoxId = '';
-        });
-        clearSmallBoxes();
-      }
-    }
-  }
-
-  String findLargeBoxId(LatLng center) {
-    int i = ((center.latitude - latStart) / latStep).floor();
-    int j = ((center.longitude - lngStart) / lngStep).floor();
-    return String.fromCharCode('A'.codeUnitAt(0) + i) +
-        String.fromCharCode('A'.codeUnitAt(0) + j);
-  }
-
-  void clearSmallBoxes() {
-    setState(() {
-      polygons.removeWhere((polygon) => polygon.polygonId.value.length > 2);
-    });
+  List<LatLng> generateBoxCoordinates(double minLat, double minLng, double maxLat, double maxLng) {
+    return [
+      LatLng(minLat, minLng),
+      LatLng(maxLat, minLng),
+      LatLng(maxLat, maxLng),
+      LatLng(minLat, maxLng),
+    ];
   }
 
   void generateBoxes() {
@@ -283,132 +110,155 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  void onBoxTap(LatLng position) {
-    for (Polygon polygon in polygons) {
-      if (isPointInsidePolygon(position, polygon.points)) {
-        String boxId = polygon.polygonId.value;
 
-        // Check if it's a small box
-        if (boxId.length > 2) {
-          String bigBoxId = boxId.substring(0, 2); // Extracting the big box ID
-          String smallBoxId = boxId.substring(2);  // Extracting the small box ID
-          String fullAddress = "ZM-LSK-LSK-$bigBoxId$smallBoxId";
+  void findVirtualAddress(LocationData initialLocation) {
+    // Update for the first location fetch
+    updateVirtualAddressAndMarker(initialLocation);
 
-          setState(() {
-            selectedBoxId = fullAddress;
-          });
-          return; // Stop further checks after finding the small box
-        }
-      }
-    }
+    // Setting up a listener for location changes
+    location.onLocationChanged.listen((LocationData currentLocation) {
+      updateVirtualAddressAndMarker(currentLocation);
+    });
   }
 
+  void updateVirtualAddressAndMarker(LocationData locationData) {
+    if (locationData.latitude != null && locationData.longitude != null) {
+      LatLng position = LatLng(locationData.latitude!, locationData.longitude!);
+      String largeBoxId = determineLargeBoxId(locationData);
+      String virtualAddress = generateVirtualAddress(locationData.latitude!, locationData.longitude!, largeBoxId);
+      // Update _locationData with the latest locationData
+      _locationData = locationData;
 
-  Future<String> getAddressFromLatLng(LatLng position) async {
-    // Use Google's Geocoding API to fetch address details
-    // Return a string in the format "Country-Province-Town-Area"
-    // Example return: "ZM-LSK-LSK-MW"
-    return "ZM-LSK-LSK-MW";
-  }
-
-  List<LatLng> generateBoxCoordinates(
-      double minLat, double minLng, double maxLat, double maxLng) {
-    return [
-      LatLng(minLat, minLng),
-      LatLng(maxLat, minLng),
-      LatLng(maxLat, maxLng),
-      LatLng(minLat, maxLng),
-    ];
-  }
-
-  void generateSmallBoxes(String selectedLargeBoxId) {
-    // Clear existing smaller box polygons
-    polygons.removeWhere((polygon) =>
-    polygon.polygonId.value.length > selectedLargeBoxId.length &&
-        polygon.polygonId.value.startsWith(selectedLargeBoxId));
-
-    LatLngBounds selectedLargeBoxBounds = calculateBounds(selectedLargeBoxId);
-
-    // Set the number of boxes per side to 64
-    int numBoxesPerSide = 64;
-    double latStep = (selectedLargeBoxBounds.northeast.latitude - selectedLargeBoxBounds.southwest.latitude) / numBoxesPerSide;
-    double lngStep = calculateLongitudeStep(selectedLargeBoxBounds.southwest.latitude, latStep);
-
-    // Generate smaller boxes within the selected large box
-    for (int i = 0; i < numBoxesPerSide; i++) {
-      for (int j = 0; j < numBoxesPerSide; j++) {
-        String letter = String.fromCharCode('A'.codeUnitAt(0) + (i / 26).floor()); // To cycle through A-Z, then start again at A
-        String number = ((i % 26) * 100 + j).toString().padLeft(3, '0'); // Combination of letter cycle count and j index
-        String smallBoxId = selectedLargeBoxId + letter + number;
-
-        double boxMinLat = selectedLargeBoxBounds.southwest.latitude + i * latStep;
-        double boxMinLng = selectedLargeBoxBounds.southwest.longitude + j * lngStep;
-
-        double boxMaxLat = boxMinLat + latStep;
-        double boxMaxLng = boxMinLng + lngStep;
-
-        List<LatLng> boxCoordinates = generateBoxCoordinates(boxMinLat, boxMinLng, boxMaxLat, boxMaxLng);
-
-        polygons.add(
-          Polygon(
-            polygonId: PolygonId(smallBoxId),
-            points: boxCoordinates,
-            strokeWidth: 2,
-            strokeColor: Colors.red,
-            fillColor: Colors.red.withOpacity(0.2),
-          ),
+      setState(() {
+        selectedBoxId = virtualAddress;
+        _currentLocationMarker = Marker(
+          markerId: MarkerId('currentLocation'),
+          infoWindow: InfoWindow(title: 'Current Location', snippet: virtualAddress),
+          position: position,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
         );
-      }
+        _markers.clear();
+        _markers.add(_currentLocationMarker);
+
+        // Consider if you want to move the camera as well
+        mapController.animateCamera(CameraUpdate.newLatLng(position)); isLoading = false;
+      });
+      print("Updated Virtual Address____________: $virtualAddress");
+      print("Updated Virtual Address_____________: $position");
     }
-
-    setState(() {});
   }
 
 
-// Helper method to calculate the longitude step size for approximately square boxes
-  double calculateLongitudeStep(double latitude, double latStep) {
-    const double metersPerDegreeLatitude = 111320; // Approximate value
-    double latDistanceMeters = latStep * metersPerDegreeLatitude;
-    double metersPerDegreeLongitude = metersPerDegreeLatitude * cos(latitude * pi / 180);
-    return latDistanceMeters / metersPerDegreeLongitude;
+  String determineLargeBoxId(LocationData locationData) {
+    int latIndex = ((locationData.latitude! - latStart) / latStep).floor();
+    int lngIndex = ((locationData.longitude! - lngStart) / lngStep).floor();
+    return String.fromCharCode('A'.codeUnitAt(0) + latIndex) +
+        String.fromCharCode('A'.codeUnitAt(0) + lngIndex);
+  }
+
+  String generateVirtualAddress(double latitude, double longitude, String largeBoxId) {
+    String latCode = latitudeToCode(latitude);
+    String lonCode = longitudeToCode(longitude);
+    return "ZM-LSK-LSK-$largeBoxId-$latCode$lonCode";
+  }
+
+  String latitudeToCode(double latitude) {
+    // Assuming Lusaka's latitude bounds are from -15.7000 to -14.8000
+    double minLat = -15.7000;
+    double maxLat = -14.8000;
+    int range = 1000; // Increased granularity
+
+    // Normalize latitude within Lusaka's bounds
+    int normalizedLat = ((latitude - minLat) / (maxLat - minLat) * range).floor();
+
+    // Convert to two letters (AA-ZZ)
+    int firstLetter = normalizedLat ~/ 26; // Dividing by 26 for the first letter
+    int secondLetter = normalizedLat % 26; // Modulo 26 for the second letter
+
+    return String.fromCharCode('A'.codeUnitAt(0) + firstLetter) +
+        String.fromCharCode('A'.codeUnitAt(0) + secondLetter);
+  }
+
+
+  String longitudeToCode(double longitude) {
+    // Assuming Lusaka's longitude bounds are from 28.0000 to 29.0000
+    double minLong = 28.0000;
+    double maxLong = 29.0000;
+    int range = 1000; // Increased granularity for Lusaka's area
+
+    // Normalize longitude within Lusaka's bounds
+    int normalizedLong = ((longitude - minLong) / (maxLong - minLong) * range).floor();
+
+    // Convert to a letter and two-digit number
+    int letterPart = normalizedLong ~/ 100; // Dividing by 100 for the letter
+    int numberPart = normalizedLong % 100; // Modulo 100 for the two-digit number
+
+    String letter = String.fromCharCode('A'.codeUnitAt(0) + (letterPart % 26));
+    return letter + numberPart.toString().padLeft(2, '0');
   }
 
 
 
-  LatLngBounds calculateBounds(String boxId) {
-    int i = boxId.codeUnitAt(0) - 'A'.codeUnitAt(0);
-    int j = boxId.codeUnitAt(1) - 'A'.codeUnitAt(0);
-
-    LatLngBounds lusakaBounds = LatLngBounds(
-      southwest: LatLng(-15.7000, 28.0000),
-      northeast: LatLng(-14.8000, 29.0000),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: getCurrentVirtualAddress,
+        tooltip: 'Get Current Virtual Address',
+        child: Icon(Icons.my_location),
+      ),
+      appBar: AppBar(
+        elevation: 0,
+        title: Text('ZICTA Virtual Addressing Application'),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: GoogleMap(
+              polygons: polygons,
+              onMapCreated: (controller) => mapController = controller,
+              markers: _markers,
+              initialCameraPosition: CameraPosition(
+                target: LatLng(-15.4167, 28.2833),
+                zoom: 12.0,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              if (!isLoading && _locationData != null) {
+                print("Sending to AddAddressScreen: Lat: ${_locationData.latitude}, Lon: ${_locationData.longitude}");
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => AddAddressScreen(
+                      virtualAddress: selectedBoxId,
+                      latitude: _locationData.latitude!,
+                      longitude: _locationData.longitude!,
+                    ),
+                  ),
+                );
+              }
+            },
+            child: Container(
+              padding: EdgeInsets.all(10),
+              child: Column(
+                children: [
+                  if (isLoading) CircularProgressIndicator(),
+                  if (!isLoading) Container(
+                    color: Colors.grey[200],
+                    padding: EdgeInsets.all(16.0),
+                    child: Text(
+                      'Selected Box ID: $selectedBoxId',
+                      style: TextStyle(fontSize: 10.0),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        ],
+      ),
     );
-
-    double boxMinLat = lusakaBounds.southwest.latitude + i * latStep;
-    double boxMinLng = lusakaBounds.southwest.longitude + j * lngStep;
-
-    return LatLngBounds(
-      southwest: LatLng(boxMinLat, boxMinLng),
-      northeast: LatLng(boxMinLat + latStep, boxMinLng + lngStep),
-    );
-  }
-
-  bool isPointInsidePolygon(LatLng point, List<LatLng> polygon) {
-    int intersectCount = 0;
-
-    for (int i = 0; i < polygon.length - 1; i++) {
-      if ((polygon[i].longitude > point.longitude) !=
-              (polygon[i + 1].longitude > point.longitude) &&
-          point.latitude <
-              (polygon[i + 1].latitude - polygon[i].latitude) *
-                      (point.longitude - polygon[i].longitude) /
-                      (polygon[i + 1].longitude - polygon[i].longitude) +
-                  polygon[i].latitude) {
-        intersectCount++;
-      }
-    }
-
-    return (intersectCount % 2) == 1;
   }
 
   @override
