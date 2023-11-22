@@ -26,6 +26,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
   late String _selectedType = 'Residential';
   String _street = '';
   String _area = '';
+  String _virtualAddressNumber = '';
   String _province = '';
   String _district = '';
   bool _isLoading = false; // For loading indicator
@@ -52,6 +53,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
     // Example form data variables (replace these with your actual state variables)
     String street = _street;
     String area = _area;
+    String virtualAddressNumber = _virtualAddressNumber != null ? "/$_virtualAddressNumber" : "";
     String province = _province;
     String district = _district;
     int placeId = widget.placeId;
@@ -68,7 +70,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
       "placeId" : placeId,
       "type": type,
       "virtualAddress": {
-        "name": widget.virtualAddress,
+        "name": "${widget.virtualAddress+virtualAddressNumber}",
         "lat": widget.latitude.toString(),
         "lng": widget.longitude.toString(),
       }
@@ -138,6 +140,7 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
         title: Text('Add Virtual Address'),
       ),
       body:_isLoading ? const Center(child: CircularProgressIndicator())
@@ -150,43 +153,79 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
               TextField(
                 enabled: false,
                 controller: TextEditingController(text: widget.virtualAddress),
-                decoration: InputDecoration(labelText: "Virtual Address"),
+                decoration: InputDecoration(labelText: "Virtual Address ( Auto Generated )"),
+              ),
+              Padding(padding: EdgeInsets.only(top: 15, bottom: 1), child: Text("If the virtual address is the "
+                  "same for an area, add a number identifier to that location. i.e (1,2, etc) in the text box below", style: TextStyle(
+                color: Colors.grey
+              ),)),
+              TextField(
+                decoration: InputDecoration(hintText: "Virtual Address Number"),
+                controller: TextEditingController(text: "",),
+                keyboardType: TextInputType.number,
+                onChanged: (value) {
+                  _virtualAddressNumber = value;
+                },
+              ),
+              Container(
+                height: 10,
               ),
               // Latitude (Disabled)
               TextField(
                 enabled: false,
                 controller: TextEditingController(text: "${widget.latitude}"),
-                decoration: InputDecoration(labelText: "Latitude"),
+                decoration: InputDecoration(labelText: "Latitude ( Auto Generated )"),
+              ),
+              Container(
+                height: 10,
               ),
               // Longitude (Disabled)
               TextField(
                 enabled: false,
                 controller: TextEditingController(text: "${widget.longitude}"),
-                decoration: InputDecoration(labelText: "Longitude"),
+                decoration: InputDecoration(labelText: "Longitude ( Auto Generated )"),
+              ),
+              Container(
+                height: 10,
               ),
               TextField(
+                maxLines: 2,
                 enabled: false,
                 controller: TextEditingController(text: "${widget.address}"),
-                decoration: InputDecoration(labelText: "Generated Address"),
+                decoration: InputDecoration(labelText: "Generated Address ( Auto Generated )"),
+              ),
+              Container(
+                height: 10,
               ),
               TextField(
                 enabled: false,
                 controller: TextEditingController(text: "${widget.placeId}"),
-                decoration: InputDecoration(labelText: "Generated PlaceId"),
+                decoration: InputDecoration(labelText: "Generated PlaceId ( Auto Generated )"),
+              ),
+              Container(
+                height: 10,
               ),
               TextField(
-                decoration: InputDecoration(hintText: "Ward"),
+                keyboardType: TextInputType.text,
+                decoration: InputDecoration(hintText: "Province"),
                 controller: TextEditingController(text: "${widget.province}"),
                 onChanged: (value) {
                   _province = value;
                 },
               ),
+              Container(
+                height: 10,
+              ),
               // Plot Number or Address
               TextField(
+                keyboardType: TextInputType.text,
                 decoration: InputDecoration(hintText: "Area"),
                 onChanged: (value) {
                   _area = value;
                 },
+              ),
+              Container(
+                height: 10,
               ),
               // Street
               TextField(
@@ -194,6 +233,9 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                 onChanged: (value) {
                   _street = value;
                 },
+              ),
+              Container(
+                height: 10,
               ),
               // District
               TextField(
