@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'add_address_screen.dart';
+import 'package:geocoding_resolver/geocoding_resolver.dart';
+
 
 void main() {
   runApp(MyApp());
@@ -24,6 +26,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  GeoCoder geoCoder = GeoCoder();
   bool isLoading = false;
   Location location = new Location();
   late LocationData _locationData;
@@ -36,6 +39,11 @@ class _MapScreenState extends State<MapScreen> {
   final double latStep = 0.09;
   final double lngStep = 0.1;
   Set<Polygon> polygons = Set<Polygon>();
+  String detailedAddress = "";
+  String gAddress = "";
+  int gPlaceId = 0;
+  String gProvince = "";
+
 
   @override
   void initState() {
@@ -76,6 +84,15 @@ class _MapScreenState extends State<MapScreen> {
       LatLng(maxLat, maxLng),
       LatLng(minLat, maxLng),
     ];
+  }
+
+  Future<String> generateUniqueVirtualAddress(double latitude, double longitude) async {
+    Address address = await geoCoder.getAddressFromLatLng(latitude: latitude, longitude: longitude);
+
+    // Use parts of the address to create a virtual address
+    String virtualAddress = "${address.addressDetails.neighbourhood}-${address.addressDetails.city}-${address.addressDetails.countryCode}";
+
+    return virtualAddress;
   }
 
   void generateBoxes() {
@@ -128,6 +145,9 @@ class _MapScreenState extends State<MapScreen> {
       String virtualAddress = generateVirtualAddress(locationData.latitude!, locationData.longitude!, largeBoxId);
       // Update _locationData with the latest locationData
       _locationData = locationData;
+      if (locationData.latitude != null && locationData.longitude != null) {
+        fetchAndPrintAddress(locationData.latitude!, locationData.longitude!);
+      }
 
       setState(() {
         selectedBoxId = virtualAddress;
@@ -141,10 +161,32 @@ class _MapScreenState extends State<MapScreen> {
         _markers.add(_currentLocationMarker);
 
         // Consider if you want to move the camera as well
-        mapController.animateCamera(CameraUpdate.newLatLng(position)); isLoading = false;
+        mapController.animateCamera(CameraUpdate.newLatLng(position));
       });
       print("Updated Virtual Address____________: $virtualAddress");
       print("Updated Virtual Address_____________: $position");
+    }
+  }
+
+  void fetchAndPrintAddress(double latitude, double longitude) async {
+    try {
+      Address address = await geoCoder.getAddressFromLatLng(latitude: latitude, longitude: longitude);
+      setState(() {
+        // gRoad = address.addressDetails.road;
+        // gDistrict = address.addressDetails.city;
+        // gArea = address.addressDetails.neighbourhood;
+        gProvince = address.addressDetails.state;
+        gAddress = address.displayName;
+        gPlaceId = address.placeId;
+        isLoading = false;
+      });
+      print("Address Details: ${address.displayName}");
+     // print("MORE DETAILS_______: ${address.addressDetails.state + '------' + address.placeId.toString() + '------' +'---------'+ address.addressDetails.countryCode}");
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      print("Error fetching address: $e");
     }
   }
 
@@ -234,6 +276,9 @@ class _MapScreenState extends State<MapScreen> {
                       virtualAddress: selectedBoxId,
                       latitude: _locationData.latitude!,
                       longitude: _locationData.longitude!,
+                      address : gAddress,
+                      placeId: gPlaceId,
+                      province:  gProvince
                     ),
                   ),
                 );

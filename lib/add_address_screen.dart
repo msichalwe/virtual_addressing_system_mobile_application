@@ -6,12 +6,16 @@ class AddAddressScreen extends StatefulWidget {
   final String virtualAddress;
   final double latitude;
   final double longitude;
+  final String address;
+  final String province;
+  final int placeId;
+
 
   AddAddressScreen({
     Key? key,
     required this.virtualAddress,
     required this.latitude,
-    required this.longitude,
+    required this.longitude, required this.province, required this.placeId, required this.address
   }) : super(key: key);
 
   @override
@@ -21,10 +25,9 @@ class AddAddressScreen extends StatefulWidget {
 class _AddAddressScreenState extends State<AddAddressScreen> {
   late String _selectedType = 'Residential';
   String _street = '';
-  String _address = '';
+  String _area = '';
   String _province = '';
   String _district = '';
-  String _ward = '';
   bool _isLoading = false; // For loading indicator
   final List<String> _typeOptions = [
     'Industrial',
@@ -48,19 +51,21 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
     });
     // Example form data variables (replace these with your actual state variables)
     String street = _street;
-    String address = _address;
+    String area = _area;
     String province = _province;
     String district = _district;
-    String ward = _ward;
+    int placeId = widget.placeId;
+    String address = widget.address;
     String type = _selectedType;  // Assuming _selectedType holds the type value
 
     // Form data as per your API structure
     var body = jsonEncode({
       "street": street,
-      "address": address,
+      "area": area,
       "province": province,
       "district": district,
-      "ward": ward,
+      "address" : address,
+      "placeId" : placeId,
       "type": type,
       "virtualAddress": {
         "name": widget.virtualAddress,
@@ -159,11 +164,28 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                 controller: TextEditingController(text: "${widget.longitude}"),
                 decoration: InputDecoration(labelText: "Longitude"),
               ),
+              TextField(
+                enabled: false,
+                controller: TextEditingController(text: "${widget.address}"),
+                decoration: InputDecoration(labelText: "Generated Address"),
+              ),
+              TextField(
+                enabled: false,
+                controller: TextEditingController(text: "${widget.placeId}"),
+                decoration: InputDecoration(labelText: "Generated PlaceId"),
+              ),
+              TextField(
+                decoration: InputDecoration(hintText: "Ward"),
+                controller: TextEditingController(text: "${widget.province}"),
+                onChanged: (value) {
+                  _province = value;
+                },
+              ),
               // Plot Number or Address
               TextField(
-                decoration: InputDecoration(hintText: "Plot Number or Address"),
+                decoration: InputDecoration(hintText: "Area"),
                 onChanged: (value) {
-                  _address = value;
+                  _area = value;
                 },
               ),
               // Street
@@ -173,25 +195,11 @@ class _AddAddressScreenState extends State<AddAddressScreen> {
                   _street = value;
                 },
               ),
-              // Ward
-              TextField(
-                decoration: InputDecoration(hintText: "Ward"),
-                onChanged: (value) {
-                  _ward = value;
-                },
-              ),
               // District
               TextField(
                 decoration: InputDecoration(hintText: "District"),
                 onChanged: (value) {
                   _district = value;
-                },
-              ),
-              // Province
-              TextField(
-                decoration: InputDecoration(hintText: "Province"),
-                onChanged: (value) {
-                  _province = value;
                 },
               ),
               // Type
